@@ -1,0 +1,11 @@
+{
+  "name": "com.steff.toolkit.editor",
+  "version": "0.1.0",
+  "displayName": "Steff's Unity Toolkit - Editor",
+  "description": "A modular collection of Unity Editor tools that streamline project setup and development workflows.",
+  "unity": "6000.0",
+  "author": {
+    "name": "Steff",
+    "url": ""
+  }
+}
