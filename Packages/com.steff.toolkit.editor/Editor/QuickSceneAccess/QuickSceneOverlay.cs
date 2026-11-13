@@ -10,20 +10,53 @@ using UnityEngine.UIElements;
 
 namespace SteffsToolkit.Editor
 {
+    /// <summary>How the overlay is currently laid out, depending on where it is docked.</summary>
+    internal enum QuickSceneLayout
+    {
+        Horizontal, // docked at the top or bottom of the Scene view
+        Vertical,   // docked at the left or right edge
+        Panel       // floating or docked in a column
+    }
+
     /// <summary>
-    /// Scene view toolbar for Quick Scene Access: a dropdown with the current scene
-    /// (click for favorites / recents / all scenes) and one button per favorite scene.
-    /// It docks at the bottom of the Scene view by default but can be dragged anywhere.
+    /// Scene view overlay for Quick Scene Access: a scene dropdown, a star for the active
+    /// scene, a save-mode button and one-click buttons for your favorite scenes.
+    /// Unity asks the overlay for different content depending on where it is docked, so it
+    /// reorganizes itself (row, column or panel) when you drag it to another edge.
     /// If it is not visible, open the Overlay menu (` key) and enable "Quick Scenes".
     /// </summary>
     [Overlay(typeof(SceneView), OverlayId, "Quick Scenes", defaultDisplay = true, defaultDockZone = DockZone.BottomToolbar)]
-    public sealed class QuickSceneOverlay : ToolbarOverlay
+    public sealed class QuickSceneOverlay : Overlay, ICreateHorizontalToolbar, ICreateVerticalToolbar
     {
         public const string OverlayId = "steffs-toolkit-quick-scenes";
 
-        public QuickSceneOverlay()
-            : base(QuickSceneDropdown.ElementId, QuickSceneFavoritesStrip.ElementId)
+        public override VisualElement CreatePanelContent()
         {
+            var content = new VisualElement();
+            content.style.minWidth = 180;
+            content.style.paddingTop = 4;
+            content.style.paddingBottom = 4;
+            content.style.paddingLeft = 4;
+            content.style.paddingRight = 4;
+            content.Add(new QuickSceneDropdown(QuickSceneLayout.Panel));
+            content.Add(new QuickSceneFavoritesStrip(QuickSceneLayout.Panel));
+            return content;
+        }
+
+        public OverlayToolbar CreateHorizontalToolbarContent() => CreateToolbar(QuickSceneLayout.Horizontal);
+
+        public OverlayToolbar CreateVerticalToolbarContent() => CreateToolbar(QuickSceneLayout.Vertical);
+
+        private static OverlayToolbar CreateToolbar(QuickSceneLayout layout)
+        {
+            var toolbar = new OverlayToolbar();
+            toolbar.style.flexDirection = layout == QuickSceneLayout.Horizontal
+                ? FlexDirection.Row
+                : FlexDirection.Column;
+
+            toolbar.Add(new QuickSceneDropdown(layout));
+            toolbar.Add(new QuickSceneFavoritesStrip(layout));
+            return toolbar;
         }
     }
 
@@ -67,21 +100,80 @@ namespace SteffsToolkit.Editor
             if (message != null && view != null)
                 view.ShowNotification(new GUIContent(message));
         }
+
+        public static string Truncate(string value, int maxLength) =>
+            value.Length <= maxLength ? value : value.Substring(0, Math.Max(1, maxLength - 2)) + "..";
+
+        public static void ShowUnsavedModeMenu()
+        {
+            var menu = new GenericMenu();
+            foreach (UnsavedChangesMode mode in Enum.GetValues(typeof(UnsavedChangesMode)))
+            {
+                UnsavedChangesMode captured = mode;
+                menu.AddItem(
+                    new GUIContent(captured.Label()),
+                    QuickSceneAccessState.UnsavedMode == captured,
+                    () => UnsavedChangesModeUtil.Request(captured));
+            }
+
+            menu.ShowAsContext();
+        }
+
+        /// <summary>
+        /// Gives a button in the panel layout a visible outline, rounded corners, margin and
+        /// padding so neighboring buttons are easy to tell apart.
+        /// </summary>
+        public static void StylePanelButton(VisualElement button)
+        {
+            var outline = new Color(0.5f, 0.5f, 0.5f, 0.45f);
+
+            button.style.height = 22;
+            button.style.marginTop = 2;
+            button.style.marginBottom = 2;
+            button.style.marginLeft = 2;
+            button.style.marginRight = 2;
+            button.style.paddingLeft = 8;
+            button.style.paddingRight = 8;
+
+            button.style.borderTopWidth = 1;
+            button.style.borderBottomWidth = 1;
+            button.style.borderLeftWidth = 1;
+            button.style.borderRightWidth = 1;
+            button.style.borderTopColor = outline;
+            button.style.borderBottomColor = outline;
+            button.style.borderLeftColor = outline;
+            button.style.borderRightColor = outline;
+
+            button.style.borderTopLeftRadius = 3;
+            button.style.borderTopRightRadius = 3;
+            button.style.borderBottomLeftRadius = 3;
+            button.style.borderBottomRightRadius = 3;
+        }
     }
 
     /// <summary>Shows the active scene; click to pick another one.</summary>
-    [EditorToolbarElement(ElementId, typeof(SceneView))]
-    public sealed class QuickSceneDropdown : EditorToolbarDropdown
+    internal sealed class QuickSceneDropdown : EditorToolbarDropdown
     {
-        public const string ElementId = "SteffsToolkit/QuickScenes/Dropdown";
-
         private const int FlatListLimit = 12;
 
-        public QuickSceneDropdown()
+        private readonly QuickSceneLayout quickLayout;
+
+        private int MaxLength => quickLayout == QuickSceneLayout.Vertical ? 9 : 24;
+
+        public QuickSceneDropdown(QuickSceneLayout quickLayout)
         {
+            this.quickLayout = quickLayout;
+
             icon = EditorGUIUtility.IconContent("SceneAsset Icon").image as Texture2D;
-            tooltip = "Switch scene";
             clicked += ShowMenu;
+
+            if (quickLayout == QuickSceneLayout.Panel)
+            {
+                // Keep it compact instead of stretching across the whole panel.
+                QuickSceneOverlayUtil.StylePanelButton(this);
+                style.alignSelf = Align.FlexStart;
+                style.marginBottom = 4;
+            }
 
             RegisterCallback<AttachToPanelEvent>(_ =>
             {
@@ -99,11 +191,17 @@ namespace SteffsToolkit.Editor
             string sceneName = string.IsNullOrEmpty(scene.name) ? "Untitled" : scene.name;
             string label = scene.isDirty ? sceneName + " *" : sceneName;
 
-            UnsavedChangesMode mode = QuickSceneAccessState.UnsavedMode;
-            if (mode != UnsavedChangesMode.Ask)
-                label += $"  [{mode.ShortLabel()}]";
+            text = QuickSceneOverlayUtil.Truncate(label, MaxLength);
+            tooltip = $"{label}\nClick to switch scene";
 
-            text = label;
+            SceneColor color = string.IsNullOrEmpty(scene.path)
+                ? SceneColor.None
+                : QuickSceneAccessState.GetColor(AssetDatabase.AssetPathToGUID(scene.path));
+
+            if (quickLayout == QuickSceneLayout.Panel && color == SceneColor.None)
+                style.borderLeftWidth = 1; // keep the plain outline
+            else
+                SceneColorUtil.ApplyMarker(this, color);
         }
 
         private void ShowMenu()
@@ -186,15 +284,6 @@ namespace SteffsToolkit.Editor
                 menu.AddDisabledItem(new GUIContent("No scenes in this project"));
 
             menu.AddSeparator(string.Empty);
-            foreach (UnsavedChangesMode mode in Enum.GetValues(typeof(UnsavedChangesMode)))
-            {
-                UnsavedChangesMode captured = mode;
-                menu.AddItem(
-                    new GUIContent($"Unsaved Changes/{captured.Label()}"),
-                    QuickSceneAccessState.UnsavedMode == captured,
-                    () => UnsavedChangesModeUtil.Request(captured));
-            }
-
             menu.AddItem(
                 new GUIContent("Open Quick Scene Access Window"),
                 false,
@@ -205,20 +294,28 @@ namespace SteffsToolkit.Editor
     }
 
     /// <summary>
-    /// A star for the active scene plus one button per favorite scene.
-    /// Click opens, Shift+Click opens additively.
+    /// A star for the active scene, the save-mode button and one button per favorite scene.
+    /// Left-click opens, Shift+Click opens additively, right-click for more options.
+    /// Adapts to the overlay layout: a row when docked top/bottom, a column otherwise.
     /// </summary>
-    [EditorToolbarElement(ElementId, typeof(SceneView))]
-    public sealed class QuickSceneFavoritesStrip : VisualElement
+    internal sealed class QuickSceneFavoritesStrip : VisualElement
     {
-        public const string ElementId = "SteffsToolkit/QuickScenes/Favorites";
+        private static readonly Color WarningColor = new Color(0.93f, 0.6f, 0.2f);
 
-        private const int MaxButtons = 6;
-        private const int MaxLabelLength = 18;
+        private readonly QuickSceneLayout quickLayout;
 
-        public QuickSceneFavoritesStrip()
+        private int MaxButtons =>
+            quickLayout == QuickSceneLayout.Horizontal ? 6 : quickLayout == QuickSceneLayout.Vertical ? 8 : 12;
+
+        private int MaxLabelLength =>
+            quickLayout == QuickSceneLayout.Horizontal ? 18 : quickLayout == QuickSceneLayout.Vertical ? 8 : 24;
+
+        public QuickSceneFavoritesStrip(QuickSceneLayout quickLayout)
         {
-            style.flexDirection = FlexDirection.Row;
+            this.quickLayout = quickLayout;
+            style.flexDirection = quickLayout == QuickSceneLayout.Horizontal
+                ? FlexDirection.Row
+                : FlexDirection.Column;
 
             RegisterCallback<AttachToPanelEvent>(_ =>
             {
@@ -240,22 +337,88 @@ namespace SteffsToolkit.Editor
             bool canOpen = !EditorApplication.isPlayingOrWillChangePlaymode;
             string activePath = SceneManager.GetActiveScene().path;
 
-            // Star: add/remove the active scene from favorites.
-            if (!string.IsNullOrEmpty(activePath) &&
-                SceneCatalog.TryGetByGuid(AssetDatabase.AssetPathToGUID(activePath), out SceneEntry current))
+            // In the panel layout the star and the save-mode button sit side by side.
+            VisualElement actions = this;
+            if (quickLayout == QuickSceneLayout.Panel)
             {
-                bool isFavorite = QuickSceneAccessState.IsFavorite(current.Guid);
-                var star = new EditorToolbarButton
-                {
-                    text = isFavorite ? "★" : "☆",
-                    tooltip = isFavorite
-                        ? $"Remove '{current.Name}' from favorites"
-                        : $"Add '{current.Name}' to favorites"
-                };
-                star.RegisterCallback<ClickEvent>(_ => QuickSceneAccessState.ToggleFavorite(current.Guid));
-                Add(star);
+                actions = new VisualElement();
+                actions.style.flexDirection = FlexDirection.Row;
+                Add(actions);
             }
 
+            AddStar(actions, activePath);
+            AddSaveModeButton(actions);
+            AddFavoriteButtons(canOpen, activePath);
+        }
+
+        private void AddStar(VisualElement parent, string activePath)
+        {
+            if (string.IsNullOrEmpty(activePath))
+                return;
+
+            if (!SceneCatalog.TryGetByGuid(AssetDatabase.AssetPathToGUID(activePath), out SceneEntry current))
+                return;
+
+            bool isFavorite = QuickSceneAccessState.IsFavorite(current.Guid);
+            var star = new EditorToolbarButton
+            {
+                text = isFavorite ? "★" : "☆",
+                tooltip = (isFavorite
+                              ? $"Remove '{current.Name}' from favorites"
+                              : $"Add '{current.Name}' to favorites") +
+                          "\nRight-click to set its color"
+            };
+
+            if (quickLayout == QuickSceneLayout.Panel)
+                QuickSceneOverlayUtil.StylePanelButton(star);
+
+            star.RegisterCallback<ClickEvent>(evt =>
+            {
+                if (evt.button == 0)
+                    QuickSceneAccessState.ToggleFavorite(current.Guid);
+            });
+
+            star.AddManipulator(new ContextualMenuManipulator(evt =>
+                SceneColorUtil.AppendColorMenu(
+                    evt.menu,
+                    QuickSceneAccessState.GetColor(current.Guid),
+                    color => QuickSceneAccessState.SetColor(current.Guid, color))));
+
+            parent.Add(star);
+        }
+
+        private void AddSaveModeButton(VisualElement parent)
+        {
+            UnsavedChangesMode mode = QuickSceneAccessState.UnsavedMode;
+
+            var button = new EditorToolbarButton
+            {
+                text = quickLayout == QuickSceneLayout.Horizontal
+                    ? $"Save: {mode.ShortLabel()}"
+                    : mode.ShortLabel(),
+                tooltip = $"When switching scenes with unsaved changes: {mode.Label()}\nClick to change"
+            };
+
+            if (quickLayout == QuickSceneLayout.Panel)
+            {
+                QuickSceneOverlayUtil.StylePanelButton(button);
+                button.style.flexGrow = 1;
+            }
+
+            if (mode != UnsavedChangesMode.Ask)
+                button.style.color = new StyleColor(WarningColor);
+
+            button.RegisterCallback<ClickEvent>(evt =>
+            {
+                if (evt.button == 0)
+                    QuickSceneOverlayUtil.ShowUnsavedModeMenu();
+            });
+
+            parent.Add(button);
+        }
+
+        private void AddFavoriteButtons(bool canOpen, string activePath)
+        {
             int count = 0;
             foreach (string guid in QuickSceneAccessState.Favorites)
             {
@@ -267,21 +430,59 @@ namespace SteffsToolkit.Editor
 
                 var button = new EditorToolbarButton
                 {
-                    text = Truncate(entry.Name),
-                    tooltip = $"{entry.AssetPath}\nClick: open  |  Shift+Click: open additively"
+                    text = QuickSceneOverlayUtil.Truncate(entry.Name, MaxLabelLength),
+                    tooltip = $"{entry.AssetPath}\nClick: open  |  Shift+Click: open additively  |  Right-click: more"
                 };
+
+                if (quickLayout == QuickSceneLayout.Panel)
+                    QuickSceneOverlayUtil.StylePanelButton(button);
+
+                SceneColor color = QuickSceneAccessState.GetColor(entry.Guid);
+                if (color != SceneColor.None)
+                    SceneColorUtil.ApplyMarker(button, color);
 
                 if (entry.AssetPath == activePath)
                     button.style.unityFontStyleAndWeight = FontStyle.Bold;
 
                 button.SetEnabled(canOpen);
-                button.RegisterCallback<ClickEvent>(evt => QuickSceneOverlayUtil.Open(entry, evt.shiftKey));
+                button.RegisterCallback<ClickEvent>(evt =>
+                {
+                    if (evt.button == 0)
+                        QuickSceneOverlayUtil.Open(entry, evt.shiftKey);
+                });
+
+                button.AddManipulator(new ContextualMenuManipulator(evt => PopulateFavoriteMenu(evt, entry, canOpen)));
+
                 Add(button);
                 count++;
             }
         }
 
-        private static string Truncate(string value) =>
-            value.Length <= MaxLabelLength ? value : value.Substring(0, MaxLabelLength - 2) + "..";
+        private static void PopulateFavoriteMenu(ContextualMenuPopulateEvent evt, SceneEntry entry, bool canOpen)
+        {
+            evt.menu.AppendAction(
+                "Open",
+                _ => QuickSceneOverlayUtil.Open(entry, false),
+                _ => canOpen ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+
+            evt.menu.AppendAction(
+                "Open Additively",
+                _ => QuickSceneOverlayUtil.Open(entry, true),
+                _ => canOpen ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+
+            evt.menu.AppendSeparator();
+
+            SceneColorUtil.AppendColorMenu(
+                evt.menu,
+                QuickSceneAccessState.GetColor(entry.Guid),
+                color => QuickSceneAccessState.SetColor(entry.Guid, color));
+
+            evt.menu.AppendSeparator();
+
+            evt.menu.AppendAction(
+                "Remove from Favorites",
+                _ => QuickSceneAccessState.ToggleFavorite(entry.Guid));
+            evt.menu.AppendAction("Ping in Project", _ => SceneOpener.Ping(entry));
+        }
     }
 }
