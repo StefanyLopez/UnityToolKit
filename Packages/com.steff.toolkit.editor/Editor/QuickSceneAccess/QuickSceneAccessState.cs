@@ -20,6 +20,7 @@ namespace SteffsToolkit.Editor
             public List<string> favorites = new List<string>();
             public List<string> recents = new List<string>();
             public bool groupByFolder;
+            public int unsavedMode; // UnsavedChangesMode; 0 = Ask
         }
 
         private static Data data;
@@ -47,6 +48,22 @@ namespace SteffsToolkit.Editor
                     return;
 
                 Current.groupByFolder = value;
+                Save();
+            }
+        }
+
+        public static UnsavedChangesMode UnsavedMode
+        {
+            get => Enum.IsDefined(typeof(UnsavedChangesMode), Current.unsavedMode)
+                ? (UnsavedChangesMode)Current.unsavedMode
+                : UnsavedChangesMode.Ask;
+            set
+            {
+                int mode = (int)value;
+                if (Current.unsavedMode == mode)
+                    return;
+
+                Current.unsavedMode = mode;
                 Save();
             }
         }

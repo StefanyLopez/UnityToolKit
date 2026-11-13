@@ -58,16 +58,17 @@ The overlay's dropdown shows your current scene (with a `*` when it has unsaved 
 
 ## Safe by design
 
-- Switching scenes with unsaved changes opens Unity's usual **Save / Don't Save / Cancel** prompt. Cancel and nothing changes.
+- By default, switching scenes with unsaved changes opens Unity's usual **Save / Don't Save / Cancel** prompt. Cancel and nothing changes.
+- Doing quick experiments? The **Unsaved** menu in the toolbar lets you switch to **Auto-save** (saves for you) or **Discard** (throws changes away). Both ask you to confirm first, and the label turns orange while they're on so you don't forget.
 - Scene switching is turned off in Play Mode.
-- The tool only reads your project. It never edits scenes, project settings or Build Settings.
+- The tool only reads your project. It never edits project settings or Build Settings, and it only saves scenes if you turn on Auto-save.
 - Scenes are tracked by GUID, so a clicked scene is always the right file, even after renames or moves.
 
 ---
 
 ## Where your stuff is saved
 
-Favorites, recents and the Group toggle live in:
+Favorites, recents, the Group toggle and your Unsaved mode live in:
 
 ```
 <project>/UserSettings/SteffsToolkit/QuickSceneAccess.json

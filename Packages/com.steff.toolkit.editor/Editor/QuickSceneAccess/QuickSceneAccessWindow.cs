@@ -23,6 +23,7 @@ namespace SteffsToolkit.Editor
         private const float RowHeight = 36f;
 
         private ToolbarSearchField searchField;
+        private ToolbarMenu unsavedMenu;
         private ListView listView;
         private VisualElement emptyState;
         private Label emptyTitle;
@@ -130,6 +131,27 @@ namespace SteffsToolkit.Editor
                 RebuildList();
             });
             toolbar.Add(groupToggle);
+
+            unsavedMenu = new ToolbarMenu
+            {
+                tooltip = "What to do with unsaved changes when you switch scenes"
+            };
+            foreach (UnsavedChangesMode mode in System.Enum.GetValues(typeof(UnsavedChangesMode)))
+            {
+                UnsavedChangesMode captured = mode;
+                unsavedMenu.menu.AppendAction(
+                    captured.Label(),
+                    _ =>
+                    {
+                        UnsavedChangesModeUtil.Request(captured);
+                        UpdateUnsavedMenu();
+                    },
+                    _ => QuickSceneAccessState.UnsavedMode == captured
+                        ? DropdownMenuAction.Status.Checked
+                        : DropdownMenuAction.Status.Normal);
+            }
+            toolbar.Add(unsavedMenu);
+            UpdateUnsavedMenu();
 
             var refreshButton = new ToolbarButton(SceneCatalog.Invalidate)
             {
@@ -246,6 +268,7 @@ namespace SteffsToolkit.Editor
 
             UpdateEmptyState();
             UpdateStatusBar();
+            UpdateUnsavedMenu();
         }
 
         private void RefreshStatus()
@@ -359,6 +382,20 @@ namespace SteffsToolkit.Editor
                     break;
                 // Cancelled / AlreadyActive: nothing to report.
             }
+        }
+
+        private void UpdateUnsavedMenu()
+        {
+            if (unsavedMenu == null)
+                return;
+
+            UnsavedChangesMode mode = QuickSceneAccessState.UnsavedMode;
+            unsavedMenu.text = $"Unsaved: {mode.ShortLabel()}";
+
+            // Highlight non-default modes so they are not forgotten.
+            unsavedMenu.style.color = mode == UnsavedChangesMode.Ask
+                ? new StyleColor(StyleKeyword.Null)
+                : new StyleColor(new Color(0.93f, 0.6f, 0.2f));
         }
 
         private void ToggleFavorite(SceneEntry entry)

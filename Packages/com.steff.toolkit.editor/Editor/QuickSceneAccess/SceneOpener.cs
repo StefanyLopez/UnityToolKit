@@ -49,8 +49,7 @@ namespace SteffsToolkit.Editor
                     return OpenResult.AlreadyActive;
                 }
 
-                // Shows Unity's standard Save / Don't Save / Cancel dialog if needed.
-                if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                if (!HandleUnsavedChanges())
                     return OpenResult.Cancelled;
             }
 
@@ -83,6 +82,43 @@ namespace SteffsToolkit.Editor
             string path = AssetDatabase.GUIDToAssetPath(entry.Guid);
             if (!string.IsNullOrEmpty(path))
                 EditorUtility.RevealInFinder(path);
+        }
+
+        // Returns false when the switch should be cancelled.
+        private static bool HandleUnsavedChanges()
+        {
+            switch (QuickSceneAccessState.UnsavedMode)
+            {
+                case UnsavedChangesMode.AutoSave:
+                    return SaveModifiedScenes();
+
+                case UnsavedChangesMode.Discard:
+                    return true;
+
+                default:
+                    // Unity's standard Save / Don't Save / Cancel prompt, only if needed.
+                    return EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
+            }
+        }
+
+        private static bool SaveModifiedScenes()
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                Scene scene = SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded || !scene.isDirty)
+                    continue;
+
+                // An untitled scene opens Unity's Save As dialog; cancelling it cancels the switch.
+                if (!EditorSceneManager.SaveScene(scene))
+                {
+                    string sceneName = string.IsNullOrEmpty(scene.name) ? "Untitled" : scene.name;
+                    Debug.LogWarning($"[Quick Scene Access] Could not save '{sceneName}', so the scene was not switched.");
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static bool IsLoaded(string path)

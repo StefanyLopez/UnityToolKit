@@ -97,7 +97,13 @@ namespace SteffsToolkit.Editor
         {
             Scene scene = SceneManager.GetActiveScene();
             string sceneName = string.IsNullOrEmpty(scene.name) ? "Untitled" : scene.name;
-            text = scene.isDirty ? sceneName + " *" : sceneName;
+            string label = scene.isDirty ? sceneName + " *" : sceneName;
+
+            UnsavedChangesMode mode = QuickSceneAccessState.UnsavedMode;
+            if (mode != UnsavedChangesMode.Ask)
+                label += $"  [{mode.ShortLabel()}]";
+
+            text = label;
         }
 
         private void ShowMenu()
@@ -180,6 +186,15 @@ namespace SteffsToolkit.Editor
                 menu.AddDisabledItem(new GUIContent("No scenes in this project"));
 
             menu.AddSeparator(string.Empty);
+            foreach (UnsavedChangesMode mode in Enum.GetValues(typeof(UnsavedChangesMode)))
+            {
+                UnsavedChangesMode captured = mode;
+                menu.AddItem(
+                    new GUIContent($"Unsaved Changes/{captured.Label()}"),
+                    QuickSceneAccessState.UnsavedMode == captured,
+                    () => UnsavedChangesModeUtil.Request(captured));
+            }
+
             menu.AddItem(
                 new GUIContent("Open Quick Scene Access Window"),
                 false,
