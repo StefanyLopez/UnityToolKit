@@ -6,7 +6,8 @@ using UnityEngine;
 namespace SteffsToolkit.Editor
 {
     /// <summary>
-    /// Per-project, per-user state for Quick Scene Access (favorites, recents, view mode).
+    /// Per-project, per-user state for Quick Scene Access (favorites, recents, colors,
+    /// grouping, collapsed sections, unsaved-changes mode).
     /// Stored as JSON in UserSettings/SteffsToolkit/QuickSceneAccess.json, which Unity's
     /// default .gitignore already excludes. Scenes are referenced by GUID.
     /// </summary>
@@ -15,16 +16,28 @@ namespace SteffsToolkit.Editor
         private const int MaxRecents = 8;
 
         [Serializable]
+        internal sealed class ColorEntry
+        {
+            public string guid;
+            public int color; // SceneColor
+        }
+
+        [Serializable]
         internal sealed class Data
         {
             public List<string> favorites = new List<string>();
             public List<string> recents = new List<string>();
-            public bool groupByFolder;
+            public List<ColorEntry> colors = new List<ColorEntry>();
+            public List<string> collapsed = new List<string>();
+            public bool groupByFolder; // legacy: migrated to groupMode on load
+            public int groupMode;      // SceneGroupMode; 0 = None
+            public int unsavedMode;    // UnsavedChangesMode; 0 = Ask
         }
 
         private static Data data;
+        private static Dictionary<string, SceneColor> colorMap;
 
-        /// <summary>Raised after favorites, recents or view mode changed.</summary>
+        /// <summary>Raised after anything stored here changed.</summary>
         public static event Action Changed;
 
         private static Data Current => data ?? (data = Load());
@@ -38,27 +51,90 @@ namespace SteffsToolkit.Editor
         public static IReadOnlyList<string> Favorites => Current.favorites;
         public static IReadOnlyList<string> Recents => Current.recents;
 
-        public static bool GroupByFolder
+        // ---------------------------------------------------------------- view settings
+
+        public static SceneGroupMode GroupMode
         {
-            get => Current.groupByFolder;
+            get => Enum.IsDefined(typeof(SceneGroupMode), Current.groupMode)
+                ? (SceneGroupMode)Current.groupMode
+                : SceneGroupMode.None;
             set
             {
-                if (Current.groupByFolder == value)
+                int mode = (int)value;
+                if (Current.groupMode == mode)
                     return;
 
-                Current.groupByFolder = value;
+                Current.groupMode = mode;
                 Save();
             }
         }
+
+        public static UnsavedChangesMode UnsavedMode
+        {
+            get => Enum.IsDefined(typeof(UnsavedChangesMode), Current.unsavedMode)
+                ? (UnsavedChangesMode)Current.unsavedMode
+                : UnsavedChangesMode.Ask;
+            set
+            {
+                int mode = (int)value;
+                if (Current.unsavedMode == mode)
+                    return;
+
+                Current.unsavedMode = mode;
+                Save();
+            }
+        }
+
+        // ---------------------------------------------------------------- favorites / recents
 
         public static bool IsFavorite(string guid) => Current.favorites.Contains(guid);
 
         public static void ToggleFavorite(string guid)
         {
-            if (!Current.favorites.Remove(guid))
-                Current.favorites.Add(guid);
+            if (Current.favorites.Remove(guid))
+            {
+                Save();
+                return;
+            }
+
+            Current.favorites.Add(guid);
+
+            // A newly favorited scene without a color gets the least-used palette color,
+            // so favorites are easy to tell apart. A color you chose yourself is never replaced.
+            if (GetColor(guid) == SceneColor.None)
+            {
+                Current.colors.Add(new ColorEntry { guid = guid, color = (int)PickLeastUsedColor() });
+                colorMap = null;
+            }
 
             Save();
+        }
+
+        private static SceneColor PickLeastUsedColor()
+        {
+            var usage = new Dictionary<SceneColor, int>();
+            foreach (SceneColor used in ColorMap.Values)
+            {
+                usage.TryGetValue(used, out int current);
+                usage[used] = current + 1;
+            }
+
+            SceneColor best = SceneColor.Red;
+            int bestCount = int.MaxValue;
+            foreach (SceneColor candidate in SceneColorUtil.All)
+            {
+                if (candidate == SceneColor.None)
+                    continue;
+
+                usage.TryGetValue(candidate, out int count);
+                if (count < bestCount)
+                {
+                    best = candidate;
+                    bestCount = count;
+                }
+            }
+
+            return best;
         }
 
         public static void PushRecent(string guid)
@@ -71,6 +147,74 @@ namespace SteffsToolkit.Editor
 
             Save();
         }
+
+        // ---------------------------------------------------------------- colors
+
+        private static Dictionary<string, SceneColor> ColorMap
+        {
+            get
+            {
+                if (colorMap != null)
+                    return colorMap;
+
+                colorMap = new Dictionary<string, SceneColor>();
+                foreach (ColorEntry entry in Current.colors)
+                {
+                    if (!string.IsNullOrEmpty(entry.guid) &&
+                        entry.color != 0 &&
+                        Enum.IsDefined(typeof(SceneColor), entry.color))
+                        colorMap[entry.guid] = (SceneColor)entry.color;
+                }
+
+                return colorMap;
+            }
+        }
+
+        public static SceneColor GetColor(string guid) =>
+            ColorMap.TryGetValue(guid ?? string.Empty, out SceneColor color) ? color : SceneColor.None;
+
+        public static void SetColor(string guid, SceneColor color)
+        {
+            Current.colors.RemoveAll(e => e.guid == guid);
+            if (color != SceneColor.None)
+                Current.colors.Add(new ColorEntry { guid = guid, color = (int)color });
+
+            colorMap = null;
+            Save();
+        }
+
+        // ---------------------------------------------------------------- collapsed sections
+
+        public static bool IsCollapsed(string key) => Current.collapsed.Contains(key);
+
+        public static void ToggleCollapsed(string key)
+        {
+            if (!Current.collapsed.Remove(key))
+                Current.collapsed.Add(key);
+
+            Save();
+        }
+
+        /// <summary>Collapses the given sections, or expands everything when collapsed is false.</summary>
+        public static void SetAllCollapsed(IEnumerable<string> keys, bool collapsed)
+        {
+            if (collapsed)
+            {
+                foreach (string key in keys)
+                {
+                    if (!Current.collapsed.Contains(key))
+                        Current.collapsed.Add(key);
+                }
+            }
+            else
+            {
+                Current.collapsed.Clear();
+            }
+
+            Save();
+        }
+
+        // ---------------------------------------------------------------- persistence
 
         private static Data Load()
         {
@@ -85,6 +229,13 @@ namespace SteffsToolkit.Editor
                 {
                     if (loaded.favorites == null) loaded.favorites = new List<string>();
                     if (loaded.recents == null) loaded.recents = new List<string>();
+                    if (loaded.colors == null) loaded.colors = new List<ColorEntry>();
+                    if (loaded.collapsed == null) loaded.collapsed = new List<string>();
+
+                    if (loaded.groupMode == 0 && loaded.groupByFolder)
+                        loaded.groupMode = (int)SceneGroupMode.Folder;
+                    loaded.groupByFolder = false;
+
                     return loaded;
                 }
             }

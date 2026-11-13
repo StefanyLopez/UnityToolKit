@@ -4,34 +4,58 @@ using System.Linq;
 
 namespace SteffsToolkit.Editor
 {
+    internal enum SceneGroupMode
+    {
+        None = 0,
+        Folder = 1,
+        Color = 2
+    }
+
     /// <summary>One line in the list: either a section header or a scene.</summary>
     internal sealed class ListRow
     {
         public SceneEntry Entry { get; private set; }
+
         public string HeaderText { get; private set; }
         public int HeaderCount { get; private set; }
 
-        public bool IsHeader => Entry == null;
+        /// <summary>Stable id used to remember whether the section is collapsed.</summary>
+        public string Key { get; private set; }
+        public bool IsCollapsed { get; private set; }
+        public SceneColor HeaderColor { get; private set; }
 
-        public static ListRow Header(string text, int count) =>
-            new ListRow { HeaderText = text, HeaderCount = count };
+        public bool IsHeader => Entry == null;
+        public bool IsCollapsible => IsHeader && Key != null;
+
+        public static ListRow Header(string key, string text, int count, bool collapsed, SceneColor color) =>
+            new ListRow
+            {
+                Key = key,
+                HeaderText = text,
+                HeaderCount = count,
+                IsCollapsed = collapsed,
+                HeaderColor = color
+            };
 
         public static ListRow Scene(SceneEntry entry) =>
             new ListRow { Entry = entry };
     }
 
     /// <summary>
-    /// Pure data transformation: catalog + favorites/recents + filter -> flat list of rows.
+    /// Pure data transformation: catalog + favorites/recents/colors + filter -> flat list of rows.
     /// No UI and no AssetDatabase calls, so it is cheap to run on every keystroke.
     /// </summary>
     internal static class SceneListBuilder
     {
         private const int MaxRecentsShown = 5;
 
-        public static List<ListRow> Build(string filter, bool groupByFolder, out int matchCount)
+        public static List<ListRow> Build(string filter, SceneGroupMode groupMode, out int matchCount)
         {
             string[] tokens = Tokenize(filter);
             bool filtering = tokens.Length > 0;
+
+            // While searching, every section is shown expanded so matches are never hidden.
+            bool honorCollapse = !filtering;
 
             IEnumerable<SceneEntry> query = SceneCatalog.Scenes.Where(e => Matches(e, tokens));
             if (filtering)
@@ -65,33 +89,72 @@ namespace SteffsToolkit.Editor
             }
 
             var rows = new List<ListRow>(matches.Count + 8);
-            AddSection(rows, "Favorites", favorites);
-            AddSection(rows, "Recent", recents);
+            AddSection(rows, "favorites", "Favorites", favorites, honorCollapse, SceneColor.None);
+            AddSection(rows, "recent", "Recent", recents, honorCollapse, SceneColor.None);
 
-            if (groupByFolder)
+            switch (groupMode)
             {
-                foreach (IGrouping<string, SceneEntry> group in matches.GroupBy(e => e.DisplayFolder))
-                    AddSection(rows, group.Key, group.ToList());
-            }
-            else
-            {
-                bool hasPinnedSections = favorites.Count > 0 || recents.Count > 0;
-                if (hasPinnedSections && matches.Count > 0)
-                    rows.Add(ListRow.Header("All scenes", matches.Count));
+                case SceneGroupMode.Folder:
+                    foreach (IGrouping<string, SceneEntry> group in matches.GroupBy(e => e.DisplayFolder))
+                        AddSection(rows, "folder:" + group.Key, group.Key, group.ToList(), honorCollapse, SceneColor.None);
+                    break;
 
-                foreach (SceneEntry entry in matches)
-                    rows.Add(ListRow.Scene(entry));
+                case SceneGroupMode.Color:
+                    AddColorSections(rows, matches, honorCollapse);
+                    break;
+
+                default:
+                    bool hasPinnedSections = favorites.Count > 0 || recents.Count > 0;
+                    if (hasPinnedSections)
+                    {
+                        AddSection(rows, "all", "All scenes", matches, honorCollapse, SceneColor.None);
+                    }
+                    else
+                    {
+                        foreach (SceneEntry entry in matches)
+                            rows.Add(ListRow.Scene(entry));
+                    }
+                    break;
             }
 
             return rows;
         }
 
-        private static void AddSection(List<ListRow> rows, string title, List<SceneEntry> entries)
+        private static void AddColorSections(List<ListRow> rows, List<SceneEntry> matches, bool honorCollapse)
+        {
+            Dictionary<SceneColor, List<SceneEntry>> byColor = matches
+                .GroupBy(e => QuickSceneAccessState.GetColor(e.Guid))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (SceneColor color in SceneColorUtil.All)
+            {
+                if (color == SceneColor.None || !byColor.TryGetValue(color, out List<SceneEntry> list))
+                    continue;
+
+                AddSection(rows, "color:" + color, color.Label(), list, honorCollapse, color);
+            }
+
+            if (byColor.TryGetValue(SceneColor.None, out List<SceneEntry> uncolored))
+                AddSection(rows, "color:None", "No color", uncolored, honorCollapse, SceneColor.None);
+        }
+
+        private static void AddSection(
+            List<ListRow> rows,
+            string key,
+            string title,
+            List<SceneEntry> entries,
+            bool honorCollapse,
+            SceneColor color)
         {
             if (entries.Count == 0)
                 return;
 
-            rows.Add(ListRow.Header(title, entries.Count));
+            bool collapsed = honorCollapse && QuickSceneAccessState.IsCollapsed(key);
+            rows.Add(ListRow.Header(key, title, entries.Count, collapsed, color));
+
+            if (collapsed)
+                return;
+
             foreach (SceneEntry entry in entries)
                 rows.Add(ListRow.Scene(entry));
         }
@@ -101,19 +164,28 @@ namespace SteffsToolkit.Editor
                 ? Array.Empty<string>()
                 : filter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-        // Every token must appear in the scene name or its folder.
+        // Every token must appear in the scene name, its folder or its color name.
         private static bool Matches(SceneEntry entry, string[] tokens)
         {
+            if (tokens.Length == 0)
+                return true;
+
+            SceneColor color = QuickSceneAccessState.GetColor(entry.Guid);
             foreach (string token in tokens)
             {
-                if (!Contains(entry.Name, token) && !Contains(entry.DisplayFolder, token))
+                bool found =
+                    Contains(entry.Name, token) ||
+                    Contains(entry.DisplayFolder, token) ||
+                    (color != SceneColor.None && Contains(color.Label(), token));
+
+                if (!found)
                     return false;
             }
 
             return true;
         }
 
-        // 0: name starts with the typed text, 1: name contains every token, 2: matched via folder.
+        // 0: name starts with the typed text, 1: name contains every token, 2: matched via folder/color.
         private static int Score(SceneEntry entry, string phrase, string[] tokens)
         {
             if (entry.Name.StartsWith(phrase, StringComparison.OrdinalIgnoreCase))

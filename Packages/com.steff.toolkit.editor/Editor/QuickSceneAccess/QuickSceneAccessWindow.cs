@@ -11,11 +11,11 @@ using UnityEngine.UIElements;
 namespace SteffsToolkit.Editor
 {
     /// <summary>
-    /// Quick Scene Access: search, pin and open project scenes.
+    /// Quick Scene Access: search, pin, color and open project scenes.
     /// This class only wires UI to the services next to it:
     /// SceneCatalog (discovery), SceneListBuilder (filter/sections),
     /// SceneStatus (active/loaded/build), SceneOpener (safe opening),
-    /// QuickSceneAccessState (favorites/recents).
+    /// QuickSceneAccessState (favorites/recents/colors/settings).
     /// </summary>
     public class QuickSceneAccessWindow : EditorWindow
     {
@@ -23,6 +23,8 @@ namespace SteffsToolkit.Editor
         private const float RowHeight = 36f;
 
         private ToolbarSearchField searchField;
+        private ToolbarMenu groupMenu;
+        private ToolbarMenu unsavedMenu;
         private ListView listView;
         private VisualElement emptyState;
         private Label emptyTitle;
@@ -53,10 +55,10 @@ namespace SteffsToolkit.Editor
             titleContent = new GUIContent(
                 "Quick Scene Access",
                 EditorGUIUtility.IconContent("SceneAsset Icon").image);
-            minSize = new Vector2(300f, 260f);
+            minSize = new Vector2(330f, 260f);
 
             SceneCatalog.Changed += QueueRebuild;
-            QuickSceneAccessState.Changed += QueueRebuild; // favorites toggled from the Scene view overlay
+            QuickSceneAccessState.Changed += QueueRebuild; // favorites/colors changed (e.g. from the overlay)
             EditorSceneManager.sceneOpened += OnSceneOpened;
             EditorSceneManager.sceneClosed += OnSceneClosed;
             EditorSceneManager.newSceneCreated += OnNewSceneCreated;
@@ -111,7 +113,7 @@ namespace SteffsToolkit.Editor
 
             searchField = new ToolbarSearchField();
             searchField.AddToClassList("qsa-search");
-            searchField.tooltip = "Filter by scene name or folder. Enter opens the first result.";
+            searchField.tooltip = "Filter by scene name, folder or color. Enter opens the first result.";
             searchField.RegisterValueChangedCallback(evt =>
             {
                 filter = evt.newValue ?? string.Empty;
@@ -122,14 +124,36 @@ namespace SteffsToolkit.Editor
             searchField.RegisterCallback<KeyDownEvent>(OnSearchKeyDown, TrickleDown.TrickleDown);
             toolbar.Add(searchField);
 
-            var groupToggle = new ToolbarToggle { text = "Group", tooltip = "Group scenes by folder" };
-            groupToggle.SetValueWithoutNotify(QuickSceneAccessState.GroupByFolder);
-            groupToggle.RegisterValueChangedCallback(evt =>
+            groupMenu = new ToolbarMenu();
+            AddGroupAction("No Grouping", SceneGroupMode.None);
+            AddGroupAction("By Folder", SceneGroupMode.Folder);
+            AddGroupAction("By Color", SceneGroupMode.Color);
+            groupMenu.menu.AppendSeparator();
+            groupMenu.menu.AppendAction("Collapse All Groups", _ => SetAllGroupsCollapsed(true));
+            groupMenu.menu.AppendAction("Expand All Groups", _ => SetAllGroupsCollapsed(false));
+            toolbar.Add(groupMenu);
+            UpdateGroupMenu();
+
+            unsavedMenu = new ToolbarMenu
             {
-                QuickSceneAccessState.GroupByFolder = evt.newValue;
-                RebuildList();
-            });
-            toolbar.Add(groupToggle);
+                tooltip = "What to do with unsaved changes when you switch scenes"
+            };
+            foreach (UnsavedChangesMode mode in System.Enum.GetValues(typeof(UnsavedChangesMode)))
+            {
+                UnsavedChangesMode captured = mode;
+                unsavedMenu.menu.AppendAction(
+                    captured.Label(),
+                    _ =>
+                    {
+                        UnsavedChangesModeUtil.Request(captured);
+                        UpdateUnsavedMenu();
+                    },
+                    _ => QuickSceneAccessState.UnsavedMode == captured
+                        ? DropdownMenuAction.Status.Checked
+                        : DropdownMenuAction.Status.Normal);
+            }
+            toolbar.Add(unsavedMenu);
+            UpdateUnsavedMenu();
 
             var refreshButton = new ToolbarButton(SceneCatalog.Invalidate)
             {
@@ -143,6 +167,16 @@ namespace SteffsToolkit.Editor
             toolbar.Add(refreshButton);
 
             return toolbar;
+        }
+
+        private void AddGroupAction(string label, SceneGroupMode mode)
+        {
+            groupMenu.menu.AppendAction(
+                label,
+                _ => QuickSceneAccessState.GroupMode = mode,
+                _ => QuickSceneAccessState.GroupMode == mode
+                    ? DropdownMenuAction.Status.Checked
+                    : DropdownMenuAction.Status.Normal);
         }
 
         private VisualElement BuildBody()
@@ -221,6 +255,8 @@ namespace SteffsToolkit.Editor
             var row = new SceneRowView();
             row.OpenRequested += OpenEntry;
             row.FavoriteToggleRequested += ToggleFavorite;
+            row.ColorRequested += SetColor;
+            row.HeaderToggleRequested += QuickSceneAccessState.ToggleCollapsed;
             row.PingRequested += SceneOpener.Ping;
             row.RevealRequested += SceneOpener.Reveal;
             return row;
@@ -239,13 +275,15 @@ namespace SteffsToolkit.Editor
                 return;
 
             status = SceneStatus.Capture();
-            rows = SceneListBuilder.Build(filter, QuickSceneAccessState.GroupByFolder, out matchCount);
+            rows = SceneListBuilder.Build(filter, QuickSceneAccessState.GroupMode, out matchCount);
 
             listView.itemsSource = rows;
             listView.Rebuild();
 
             UpdateEmptyState();
             UpdateStatusBar();
+            UpdateGroupMenu();
+            UpdateUnsavedMenu();
         }
 
         private void RefreshStatus()
@@ -305,7 +343,7 @@ namespace SteffsToolkit.Editor
             else
             {
                 emptyTitle.text = $"No scenes match '{filter.Trim()}'";
-                emptyMessage.text = "Try part of the scene name or its folder.";
+                emptyMessage.text = "Try part of the scene name, its folder or its color.";
             }
         }
 
@@ -334,6 +372,33 @@ namespace SteffsToolkit.Editor
 
             playModeBanner.style.display = CanOpenNow ? DisplayStyle.None : DisplayStyle.Flex;
             listView.RefreshItems();
+        }
+
+        private void UpdateGroupMenu()
+        {
+            if (groupMenu == null)
+                return;
+
+            SceneGroupMode mode = QuickSceneAccessState.GroupMode;
+            groupMenu.text = mode == SceneGroupMode.Folder ? "Folder"
+                : mode == SceneGroupMode.Color ? "Color"
+                : "Group";
+            groupMenu.tooltip = "Group scenes (current: " +
+                (mode == SceneGroupMode.None ? "no grouping" : mode.ToString().ToLowerInvariant()) + ")";
+        }
+
+        private void UpdateUnsavedMenu()
+        {
+            if (unsavedMenu == null)
+                return;
+
+            UnsavedChangesMode mode = QuickSceneAccessState.UnsavedMode;
+            unsavedMenu.text = $"Save: {mode.ShortLabel()}";
+
+            // Highlight non-default modes so they are not forgotten.
+            unsavedMenu.style.color = mode == UnsavedChangesMode.Ask
+                ? new StyleColor(StyleKeyword.Null)
+                : new StyleColor(new Color(0.93f, 0.6f, 0.2f));
         }
 
         // ---------------------------------------------------------------- actions
@@ -365,6 +430,18 @@ namespace SteffsToolkit.Editor
         {
             QuickSceneAccessState.ToggleFavorite(entry.Guid);
             QueueRebuild();
+        }
+
+        private void SetColor(SceneEntry entry, SceneColor color)
+        {
+            QuickSceneAccessState.SetColor(entry.Guid, color);
+            QueueRebuild();
+        }
+
+        private void SetAllGroupsCollapsed(bool collapsed)
+        {
+            List<string> keys = rows.Where(r => r.IsCollapsible).Select(r => r.Key).ToList();
+            QuickSceneAccessState.SetAllCollapsed(keys, collapsed);
         }
 
         private static void OpenBuildProfiles()
