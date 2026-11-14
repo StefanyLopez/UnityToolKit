@@ -305,6 +305,23 @@ namespace SteffsToolkit.Editor
                     menu.AddDisabledItem(new GUIContent(playLabel), isPlayFrom);
             }
 
+            // Scene sets
+            foreach (QuickSceneAccessState.SceneSetData set in QuickSceneAccessState.Sets)
+            {
+                QuickSceneAccessState.SceneSetData captured = set;
+                var setLabel = new GUIContent($"Scene Sets/{captured.name} ({captured.guids.Count})");
+
+                if (canOpen)
+                    menu.AddItem(setLabel, SceneSetActions.IsLoaded(captured), () => SceneSetActions.Load(captured));
+                else
+                    menu.AddDisabledItem(setLabel, SceneSetActions.IsLoaded(captured));
+            }
+
+            menu.AddItem(
+                new GUIContent("Scene Sets/Save Loaded Scenes as New Set..."),
+                false,
+                SceneSetActions.SaveLoadedAsNew);
+
             menu.AddItem(new GUIContent("Search Scenes..."), false, QuickSceneSearchWindow.ShowPalette);
             menu.AddItem(
                 new GUIContent("Open Quick Scene Access Window"),
@@ -372,6 +389,7 @@ namespace SteffsToolkit.Editor
             AddSaveModeButton(actions);
             AddPlayFromButton(canOpen);
             AddFavoriteButtons(canOpen, activePath);
+            AddSetButtons(canOpen);
         }
 
         private void AddStar(VisualElement parent, string activePath)
@@ -506,6 +524,57 @@ namespace SteffsToolkit.Editor
                 });
 
                 button.AddManipulator(new ContextualMenuManipulator(evt => PopulateFavoriteMenu(evt, entry, canOpen)));
+
+                Add(button);
+                count++;
+            }
+        }
+
+        // One "Set: name" button per saved set; click loads all of its scenes.
+        private void AddSetButtons(bool canOpen)
+        {
+            int maxSets = quickLayout == QuickSceneLayout.Horizontal ? 3 : quickLayout == QuickSceneLayout.Vertical ? 4 : 8;
+            int count = 0;
+
+            foreach (QuickSceneAccessState.SceneSetData set in QuickSceneAccessState.Sets)
+            {
+                if (count >= maxSets)
+                    break;
+
+                QuickSceneAccessState.SceneSetData captured = set;
+                var button = new EditorToolbarButton
+                {
+                    text = quickLayout == QuickSceneLayout.Vertical
+                        ? QuickSceneOverlayUtil.Truncate(captured.name, MaxLabelLength)
+                        : "Set: " + QuickSceneOverlayUtil.Truncate(captured.name, Mathf.Max(6, MaxLabelLength - 5)),
+                    tooltip = $"Scene set '{captured.name}' ({captured.guids.Count} scenes)\n" +
+                              "Click: load all its scenes  |  Right-click: more"
+                };
+
+                if (quickLayout == QuickSceneLayout.Panel)
+                    QuickSceneOverlayUtil.StylePanelButton(button);
+
+                if (SceneSetActions.IsLoaded(captured))
+                    button.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+                button.SetEnabled(canOpen);
+                button.RegisterCallback<ClickEvent>(evt =>
+                {
+                    if (evt.button == 0)
+                        SceneSetActions.Load(captured);
+                });
+
+                button.AddManipulator(new ContextualMenuManipulator(evt =>
+                {
+                    evt.menu.AppendAction(
+                        "Load Set",
+                        _ => SceneSetActions.Load(captured),
+                        _ => canOpen ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+                    evt.menu.AppendSeparator();
+                    evt.menu.AppendAction("Update From Loaded Scenes...", _ => SceneSetActions.UpdateFromLoaded(captured));
+                    evt.menu.AppendAction("Rename...", _ => SceneSetActions.Rename(captured));
+                    evt.menu.AppendAction("Delete...", _ => SceneSetActions.Delete(captured));
+                }));
 
                 Add(button);
                 count++;

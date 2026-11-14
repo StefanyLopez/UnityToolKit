@@ -135,6 +135,14 @@ namespace SteffsToolkit.Editor
             toolbar.Add(groupMenu);
             UpdateGroupMenu();
 
+            var setsButton = new ToolbarButton
+            {
+                text = "Sets",
+                tooltip = "Load, save and manage groups of scenes"
+            };
+            setsButton.clicked += () => SceneSetMenu.Build().DropDown(setsButton.worldBound);
+            toolbar.Add(setsButton);
+
             unsavedMenu = new ToolbarMenu
             {
                 tooltip = "What to do with unsaved changes when you switch scenes"
