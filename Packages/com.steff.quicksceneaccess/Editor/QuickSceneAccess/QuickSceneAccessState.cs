@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-namespace SteffsToolkit.Editor
+namespace Steff.QuickSceneAccess.Editor
 {
     /// <summary>
     /// Per-project, per-user state for Quick Scene Access (favorites, recents, colors,
     /// grouping, collapsed sections, unsaved-changes mode).
-    /// Stored as JSON in UserSettings/SteffsToolkit/QuickSceneAccess.json, which Unity's
+    /// Stored as JSON in UserSettings/QuickSceneAccess.json, which Unity's
     /// default .gitignore already excludes. Scenes are referenced by GUID.
     /// </summary>
     internal static class QuickSceneAccessState
@@ -57,7 +57,7 @@ namespace SteffsToolkit.Editor
         private static string FilePath => Path.Combine(
             Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
             "UserSettings",
-            "SteffsToolkit",
+            "QuickSceneAccess",
             "QuickSceneAccess.json");
 
         public static IReadOnlyList<string> Favorites => Current.favorites;

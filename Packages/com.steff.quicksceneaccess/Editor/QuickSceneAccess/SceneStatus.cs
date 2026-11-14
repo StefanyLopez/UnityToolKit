@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine.SceneManagement;
 
-namespace SteffsToolkit.Editor
+namespace Steff.QuickSceneAccess.Editor
 {
     /// <summary>
     /// Snapshot of which scenes are active, loaded, or in the Build Settings scene list.

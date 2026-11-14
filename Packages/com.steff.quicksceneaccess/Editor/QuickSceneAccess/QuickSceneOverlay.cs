@@ -8,7 +8,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
-namespace SteffsToolkit.Editor
+namespace Steff.QuickSceneAccess.Editor
 {
     /// <summary>How the overlay is currently laid out, depending on where it is docked.</summary>
     internal enum QuickSceneLayout
@@ -28,7 +28,7 @@ namespace SteffsToolkit.Editor
     [Overlay(typeof(SceneView), OverlayId, "Quick Scenes", defaultDisplay = true, defaultDockZone = DockZone.BottomToolbar)]
     public sealed class QuickSceneOverlay : Overlay, ICreateHorizontalToolbar, ICreateVerticalToolbar
     {
-        public const string OverlayId = "steffs-toolkit-quick-scenes";
+        public const string OverlayId = "quick-scene-access";
 
         public override VisualElement CreatePanelContent()
         {

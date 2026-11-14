@@ -3,7 +3,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace SteffsToolkit.Editor
+namespace Steff.QuickSceneAccess.Editor
 {
     /// <summary>A tiny modal window that asks for a name (Unity has no built-in text prompt).</summary>
     internal sealed class NamePromptWindow : EditorWindow

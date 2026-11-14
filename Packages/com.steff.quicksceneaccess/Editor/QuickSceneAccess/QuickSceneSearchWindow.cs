@@ -7,7 +7,7 @@ using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace SteffsToolkit.Editor
+namespace Steff.QuickSceneAccess.Editor
 {
     /// <summary>
     /// Quick search palette: a small popup where you type part of a scene name, move with the
@@ -34,10 +34,10 @@ namespace SteffsToolkit.Editor
 
         // ---------------------------------------------------------------- entry points
 
-        [Shortcut("Steff's Toolkit/Quick Scene Search", KeyCode.O, ShortcutModifiers.Action | ShortcutModifiers.Shift)]
+        [Shortcut("Quick Scene Access/Quick Scene Search", KeyCode.O, ShortcutModifiers.Action | ShortcutModifiers.Shift)]
         private static void ShortcutEntry() => ShowPalette();
 
-        [MenuItem("Window/Steff's Toolkit/Quick Scene Search")]
+        [MenuItem("Quick Scene Access/Quick Scene Search")]
         public static void ShowPalette()
         {
             // Pressing the shortcut again closes it.
