@@ -31,6 +31,7 @@ namespace SteffsToolkit.Editor
         private Label emptyMessage;
         private HelpBox playModeBanner;
         private Label statusLabel;
+        private Button playFromButton;
 
         private List<ListRow> rows = new List<ListRow>();
         private SceneStatus status = new SceneStatus();
@@ -218,6 +219,11 @@ namespace SteffsToolkit.Editor
             statusLabel.AddToClassList("qsa-status__label");
             bar.Add(statusLabel);
 
+            playFromButton = new Button(() => PlayFromScene.Set(null));
+            playFromButton.AddToClassList("qsa-status__button");
+            playFromButton.AddToClassList("qsa-status__play");
+            bar.Add(playFromButton);
+
             var buildButton = new Button(OpenBuildProfiles)
             {
                 text = "Build Profiles",
@@ -256,6 +262,7 @@ namespace SteffsToolkit.Editor
             row.OpenRequested += OpenEntry;
             row.FavoriteToggleRequested += ToggleFavorite;
             row.ColorRequested += SetColor;
+            row.PlayFromRequested += PlayFromScene.Toggle;
             row.HeaderToggleRequested += QuickSceneAccessState.ToggleCollapsed;
             row.PingRequested += SceneOpener.Ping;
             row.RevealRequested += SceneOpener.Reveal;
@@ -363,6 +370,14 @@ namespace SteffsToolkit.Editor
                 text += $"  ·  {status.EnabledBuildCount} in build";
 
             statusLabel.text = text;
+
+            string playFrom = PlayFromScene.CurrentName;
+            playFromButton.style.display = playFrom == null ? DisplayStyle.None : DisplayStyle.Flex;
+            if (playFrom != null)
+            {
+                playFromButton.text = $"▶ {playFrom}  ✕";
+                playFromButton.tooltip = $"Play starts from '{playFrom}'. Click to stop playing from it.";
+            }
         }
 
         private void UpdatePlayModeState()

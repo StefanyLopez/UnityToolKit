@@ -120,6 +120,49 @@ namespace SteffsToolkit.Editor
             return rows;
         }
 
+        /// <summary>
+        /// Flat, de-duplicated list for the quick search palette: every scene appears once and
+        /// collapsed sections are ignored. Without a filter the order is favorites, recents,
+        /// then everything else; with a filter, best matches first (favorites win ties).
+        /// </summary>
+        public static List<SceneEntry> BuildFlat(string filter)
+        {
+            string[] tokens = Tokenize(filter);
+            var result = new List<SceneEntry>();
+
+            if (tokens.Length > 0)
+            {
+                string phrase = filter.Trim();
+                result.AddRange(SceneCatalog.Scenes
+                    .Where(e => Matches(e, tokens))
+                    .OrderBy(e => Score(e, phrase, tokens))
+                    .ThenBy(e => QuickSceneAccessState.IsFavorite(e.Guid) ? 0 : 1));
+                return result;
+            }
+
+            var seen = new HashSet<string>();
+
+            foreach (string guid in QuickSceneAccessState.Favorites)
+            {
+                if (SceneCatalog.TryGetByGuid(guid, out SceneEntry entry) && seen.Add(guid))
+                    result.Add(entry);
+            }
+
+            foreach (string guid in QuickSceneAccessState.Recents)
+            {
+                if (SceneCatalog.TryGetByGuid(guid, out SceneEntry entry) && seen.Add(guid))
+                    result.Add(entry);
+            }
+
+            foreach (SceneEntry entry in SceneCatalog.Scenes)
+            {
+                if (seen.Add(entry.Guid))
+                    result.Add(entry);
+            }
+
+            return result;
+        }
+
         private static void AddColorSections(List<ListRow> rows, List<SceneEntry> matches, bool honorCollapse)
         {
             Dictionary<SceneColor, List<SceneEntry>> byColor = matches

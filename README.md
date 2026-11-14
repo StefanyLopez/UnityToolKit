@@ -44,7 +44,7 @@ The window and the overlay share the same favorites, colors and settings, so wha
 
 **Pin your favorites.** Click the star on any scene. Favorites go to the top of the list and become one-click buttons in the Scene view.
 
-**Color-code your scenes.** Right-click a scene and pick a **Color**. You'll see a dot in the list and a colored edge on its overlay button, and you can even search by color name.
+**Color-code your scenes.** Right-click a scene and pick a **Color**. You'll see a dot and a soft tint in the list and a colored edge on its overlay button, and you can even search by color name. In the overlay, the scene you're in is filled with its full color, so you always know where you are. Star a scene and it automatically gets a color nobody else is using much, so favorites stand apart from the start (change it any time).
 
 **Tame a long list.** The **Group** menu organizes scenes by folder or by color. Click a section header to collapse it (the tool remembers), or use Collapse All / Expand All.
 
@@ -64,9 +64,21 @@ It reorganizes itself to fit wherever you dock it:
 
 - **Top or bottom:** a single row.
 - **Left or right edge:** a compact column.
-- **Floating or in a column:** a small panel.
+- **Floating or in a column:** a small panel with outlined, evenly spaced buttons.
 
 It has a dropdown with your current scene (a `*` means unsaved changes), a star for the active scene (right-click it to set a color), a **save-mode button** and one button per favorite (Shift+Click to open additively, right-click for more).
+
+---
+
+## Quick search
+
+Press **Ctrl+Shift+O** (**Cmd+Shift+O** on Mac) for a small search popup. Type, use the arrow keys, and press **Enter** to open a scene (**Shift+Enter** to open it additively, **Esc** to close). Favorites and recents come first. You can change the shortcut in `Edit > Shortcuts`.
+
+---
+
+## Play from here
+
+Want Play to start from your Menu while you keep editing a level? Right-click the Menu scene and choose **Play From This Scene** (or use the overlay dropdown for the active scene). A `▶` marks it, and an orange `▶ Menu ✕` button in the status bar and overlay reminds you it's on; click it to turn it off. It only affects Play Mode, never builds, and it asks before replacing a start scene you set yourself.
 
 ---
 

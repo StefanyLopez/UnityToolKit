@@ -202,6 +202,12 @@ namespace SteffsToolkit.Editor
                 style.borderLeftWidth = 1; // keep the plain outline
             else
                 SceneColorUtil.ApplyMarker(this, color);
+
+            // The scene you are in is shown with its full color.
+            if (color != SceneColor.None)
+                SceneColorUtil.ApplyFill(this, color);
+            else
+                SceneColorUtil.ClearFill(this);
         }
 
         private void ShowMenu()
@@ -284,6 +290,22 @@ namespace SteffsToolkit.Editor
                 menu.AddDisabledItem(new GUIContent("No scenes in this project"));
 
             menu.AddSeparator(string.Empty);
+
+            // "Play from here" for the active scene.
+            if (SceneCatalog.TryGetByGuid(AssetDatabase.AssetPathToGUID(activePath), out SceneEntry activeEntry))
+            {
+                bool isPlayFrom = PlayFromScene.IsPlayFrom(activeEntry.Guid);
+                string playLabel = isPlayFrom
+                    ? "Stop Playing From This Scene"
+                    : $"Play From '{activeEntry.Name}'";
+
+                if (canOpen)
+                    menu.AddItem(new GUIContent(playLabel), isPlayFrom, () => PlayFromScene.Toggle(activeEntry));
+                else
+                    menu.AddDisabledItem(new GUIContent(playLabel), isPlayFrom);
+            }
+
+            menu.AddItem(new GUIContent("Search Scenes..."), false, QuickSceneSearchWindow.ShowPalette);
             menu.AddItem(
                 new GUIContent("Open Quick Scene Access Window"),
                 false,
@@ -348,6 +370,7 @@ namespace SteffsToolkit.Editor
 
             AddStar(actions, activePath);
             AddSaveModeButton(actions);
+            AddPlayFromButton(canOpen);
             AddFavoriteButtons(canOpen, activePath);
         }
 
@@ -417,6 +440,33 @@ namespace SteffsToolkit.Editor
             parent.Add(button);
         }
 
+        // Only shown while "Play from here" is active, so it is hard to forget.
+        private void AddPlayFromButton(bool canOpen)
+        {
+            string playFrom = PlayFromScene.CurrentName;
+            if (playFrom == null)
+                return;
+
+            var button = new EditorToolbarButton
+            {
+                text = $"▶ {QuickSceneOverlayUtil.Truncate(playFrom, MaxLabelLength)}",
+                tooltip = $"Play starts from '{playFrom}'.\nClick to stop playing from it."
+            };
+
+            if (quickLayout == QuickSceneLayout.Panel)
+                QuickSceneOverlayUtil.StylePanelButton(button);
+
+            button.style.color = new StyleColor(WarningColor);
+            button.SetEnabled(canOpen);
+            button.RegisterCallback<ClickEvent>(evt =>
+            {
+                if (evt.button == 0)
+                    PlayFromScene.Set(null);
+            });
+
+            Add(button);
+        }
+
         private void AddFavoriteButtons(bool canOpen, string activePath)
         {
             int count = 0;
@@ -442,7 +492,11 @@ namespace SteffsToolkit.Editor
                     SceneColorUtil.ApplyMarker(button, color);
 
                 if (entry.AssetPath == activePath)
+                {
+                    // Current scene: bold text on the full color (a neutral fill if it has none).
                     button.style.unityFontStyleAndWeight = FontStyle.Bold;
+                    SceneColorUtil.ApplyFill(button, color);
+                }
 
                 button.SetEnabled(canOpen);
                 button.RegisterCallback<ClickEvent>(evt =>
@@ -478,6 +532,11 @@ namespace SteffsToolkit.Editor
                 color => QuickSceneAccessState.SetColor(entry.Guid, color));
 
             evt.menu.AppendSeparator();
+
+            evt.menu.AppendAction(
+                PlayFromScene.IsPlayFrom(entry.Guid) ? "Stop Playing From This Scene" : "Play From This Scene",
+                _ => PlayFromScene.Toggle(entry),
+                _ => canOpen ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
 
             evt.menu.AppendAction(
                 "Remove from Favorites",
