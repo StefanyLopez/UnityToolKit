@@ -268,6 +268,20 @@ namespace SteffsToolkit.Editor
                 QuickSceneAccessState.GetColor(target.Guid),
                 color => ColorRequested?.Invoke(target, color));
 
+            foreach (QuickSceneAccessState.SceneSetData set in QuickSceneAccessState.Sets)
+            {
+                string setId = set.id;
+                bool inSet = set.guids.Contains(target.Guid);
+                evt.menu.AppendAction(
+                    $"Sets/{set.name}",
+                    _ => SceneSetActions.ToggleInSet(target, setId),
+                    _ => inSet ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
+            }
+
+            evt.menu.AppendAction(
+                "Sets/New Set With This Scene...",
+                _ => SceneSetActions.NewSetWith(target));
+
             evt.menu.AppendSeparator();
 
             bool isPlayFrom = PlayFromScene.IsPlayFrom(target.Guid);

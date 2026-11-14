@@ -22,9 +22,20 @@ namespace SteffsToolkit.Editor
             public int color; // SceneColor
         }
 
+        /// <summary>A saved group of scenes that can be loaded together.</summary>
+        [Serializable]
+        internal sealed class SceneSetData
+        {
+            public string id;
+            public string name;
+            public List<string> guids = new List<string>(); // load order; the first opens in single mode
+            public string activeGuid = string.Empty;        // scene made active after loading (optional)
+        }
+
         [Serializable]
         internal sealed class Data
         {
+            public List<SceneSetData> sets = new List<SceneSetData>();
             public List<string> favorites = new List<string>();
             public List<string> recents = new List<string>();
             public List<ColorEntry> colors = new List<ColorEntry>();
@@ -163,6 +174,91 @@ namespace SteffsToolkit.Editor
             Save();
         }
 
+        // ---------------------------------------------------------------- scene sets
+
+        public static IReadOnlyList<SceneSetData> Sets => Current.sets;
+
+        public static SceneSetData FindSet(string id) => Current.sets.Find(s => s.id == id);
+
+        public static SceneSetData CreateSet(string name, IEnumerable<string> guids, string activeGuid)
+        {
+            var set = new SceneSetData
+            {
+                id = Guid.NewGuid().ToString("N"),
+                name = MakeUniqueSetName(name),
+                guids = new List<string>(guids),
+                activeGuid = activeGuid ?? string.Empty
+            };
+
+            Current.sets.Add(set);
+            Save();
+            return set;
+        }
+
+        public static void RenameSet(string id, string name)
+        {
+            SceneSetData set = FindSet(id);
+            if (set == null)
+                return;
+
+            set.name = MakeUniqueSetName(name, id);
+            Save();
+        }
+
+        public static void DeleteSet(string id)
+        {
+            if (Current.sets.RemoveAll(s => s.id == id) > 0)
+                Save();
+        }
+
+        public static void ReplaceSetScenes(string id, IEnumerable<string> guids, string activeGuid)
+        {
+            SceneSetData set = FindSet(id);
+            if (set == null)
+                return;
+
+            set.guids = new List<string>(guids);
+            set.activeGuid = activeGuid ?? string.Empty;
+            Save();
+        }
+
+        public static void AddToSet(string id, string guid)
+        {
+            SceneSetData set = FindSet(id);
+            if (set == null || set.guids.Contains(guid))
+                return;
+
+            set.guids.Add(guid);
+            if (string.IsNullOrEmpty(set.activeGuid))
+                set.activeGuid = guid;
+            Save();
+        }
+
+        public static void RemoveFromSet(string id, string guid)
+        {
+            SceneSetData set = FindSet(id);
+            if (set == null || !set.guids.Remove(guid))
+                return;
+
+            if (set.activeGuid == guid)
+                set.activeGuid = set.guids.Count > 0 ? set.guids[0] : string.Empty;
+            Save();
+        }
+
+        // Names are shown in menus where "/" would create a submenu, so it is replaced.
+        private static string MakeUniqueSetName(string name, string ignoreId = null)
+        {
+            string baseName = string.IsNullOrWhiteSpace(name) ? "Set" : name.Trim().Replace('/', '-');
+            string candidate = baseName;
+            int n = 2;
+
+            while (Current.sets.Exists(s => s.id != ignoreId &&
+                                            string.Equals(s.name, candidate, StringComparison.OrdinalIgnoreCase)))
+                candidate = $"{baseName} {n++}";
+
+            return candidate;
+        }
+
         // ---------------------------------------------------------------- colors
 
         private static Dictionary<string, SceneColor> ColorMap
@@ -246,6 +342,13 @@ namespace SteffsToolkit.Editor
                     if (loaded.recents == null) loaded.recents = new List<string>();
                     if (loaded.colors == null) loaded.colors = new List<ColorEntry>();
                     if (loaded.collapsed == null) loaded.collapsed = new List<string>();
+                    if (loaded.sets == null) loaded.sets = new List<SceneSetData>();
+                    loaded.sets.RemoveAll(s => s == null || string.IsNullOrEmpty(s.id));
+                    foreach (SceneSetData set in loaded.sets)
+                    {
+                        if (set.guids == null) set.guids = new List<string>();
+                        if (string.IsNullOrEmpty(set.name)) set.name = "Set";
+                    }
 
                     if (loaded.groupMode == 0 && loaded.groupByFolder)
                         loaded.groupMode = (int)SceneGroupMode.Folder;

@@ -69,6 +69,75 @@ namespace SteffsToolkit.Editor
             return OpenResult.Opened;
         }
 
+        /// <summary>
+        /// Loads every scene of a set: the first one in single mode (replacing the current
+        /// scenes, with the usual unsaved-changes handling), the rest additively, then makes
+        /// the set's active scene active. Scenes that no longer exist are skipped and counted.
+        /// </summary>
+        public static OpenResult TryOpenSet(QuickSceneAccessState.SceneSetData set, out int missingCount)
+        {
+            missingCount = 0;
+
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+                return OpenResult.BlockedByPlayMode;
+
+            var paths = new System.Collections.Generic.List<string>();
+            string activePath = null;
+
+            foreach (string guid in set.guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (string.IsNullOrEmpty(path))
+                {
+                    missingCount++;
+                    continue;
+                }
+
+                if (paths.Contains(path))
+                    continue;
+
+                paths.Add(path);
+                if (guid == set.activeGuid)
+                    activePath = path;
+            }
+
+            if (paths.Count == 0)
+                return OpenResult.Missing;
+
+            if (!HandleUnsavedChanges())
+                return OpenResult.Cancelled;
+
+            try
+            {
+                Scene activeScene = default;
+                bool hasActive = false;
+
+                for (int i = 0; i < paths.Count; i++)
+                {
+                    Scene scene = EditorSceneManager.OpenScene(
+                        paths[i],
+                        i == 0 ? OpenSceneMode.Single : OpenSceneMode.Additive);
+
+                    if (paths[i] == activePath)
+                    {
+                        activeScene = scene;
+                        hasActive = true;
+                    }
+                }
+
+                if (hasActive)
+                    SceneManager.SetActiveScene(activeScene);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Quick Scene Access] Could not load set '{set.name}': {ex.Message}");
+                return OpenResult.Failed;
+            }
+
+            QuickSceneAccessState.PushRecent(AssetDatabase.AssetPathToGUID(activePath ?? paths[0]));
+            return OpenResult.Opened;
+        }
+
         public static void Ping(SceneEntry entry)
         {
             string path = AssetDatabase.GUIDToAssetPath(entry.Guid);
