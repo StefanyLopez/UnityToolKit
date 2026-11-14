@@ -58,6 +58,30 @@ namespace SteffsToolkit.Editor
             }
         }
 
+        /// <summary>
+        /// Fills an element with the full color and picks black or white text for contrast.
+        /// Used to highlight the scene you are currently in.
+        /// </summary>
+        public static void ApplyFill(VisualElement element, SceneColor color)
+        {
+            Color fill = color == SceneColor.None ? new Color(0.5f, 0.5f, 0.5f, 0.35f) : color.ToColor();
+            element.style.backgroundColor = fill;
+
+            // Relative luminance: dark text on light fills, white text on dark fills.
+            float luminance = 0.2126f * fill.r + 0.7152f * fill.g + 0.0722f * fill.b;
+            bool opaque = color != SceneColor.None;
+            element.style.color = opaque
+                ? (luminance > 0.55f ? new Color(0.08f, 0.08f, 0.08f) : Color.white)
+                : new StyleColor(StyleKeyword.Null);
+        }
+
+        /// <summary>Removes the fill added by <see cref="ApplyFill"/>.</summary>
+        public static void ClearFill(VisualElement element)
+        {
+            element.style.backgroundColor = new StyleColor(StyleKeyword.Null);
+            element.style.color = new StyleColor(StyleKeyword.Null);
+        }
+
         /// <summary>Draws a colored strip on the left edge of an element (no strip for None).</summary>
         public static void ApplyMarker(VisualElement element, SceneColor color)
         {

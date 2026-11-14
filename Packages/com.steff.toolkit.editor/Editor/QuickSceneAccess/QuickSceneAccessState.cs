@@ -32,6 +32,7 @@ namespace SteffsToolkit.Editor
             public bool groupByFolder; // legacy: migrated to groupMode on load
             public int groupMode;      // SceneGroupMode; 0 = None
             public int unsavedMode;    // UnsavedChangesMode; 0 = Ask
+            public string playFromGuid = string.Empty; // "Play from here" scene; empty = off
         }
 
         private static Data data;
@@ -81,6 +82,20 @@ namespace SteffsToolkit.Editor
                     return;
 
                 Current.unsavedMode = mode;
+                Save();
+            }
+        }
+
+        public static string PlayFromGuid
+        {
+            get => Current.playFromGuid ?? string.Empty;
+            set
+            {
+                value = value ?? string.Empty;
+                if (Current.playFromGuid == value)
+                    return;
+
+                Current.playFromGuid = value;
                 Save();
             }
         }

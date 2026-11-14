@@ -40,6 +40,7 @@ namespace SteffsToolkit.Editor
         public event Action<SceneEntry, bool> OpenRequested;
         public event Action<SceneEntry> FavoriteToggleRequested;
         public event Action<SceneEntry, SceneColor> ColorRequested;
+        public event Action<SceneEntry> PlayFromRequested;
         public event Action<SceneEntry> PingRequested;
         public event Action<SceneEntry> RevealRequested;
         public event Action<string> HeaderToggleRequested;
@@ -159,6 +160,9 @@ namespace SteffsToolkit.Editor
             sceneContainer.EnableInClassList("qsa-row--active", isActive);
             sceneContainer.EnableInClassList("qsa-row--locked", !canOpen);
 
+            if (PlayFromScene.IsPlayFrom(entry.Guid))
+                nameLabel.text = entry.Name + "  ▶";
+
             if (isActive)
                 SetChip(stateChip, "Active", "This is the active scene.");
             else if (isLoaded)
@@ -263,6 +267,14 @@ namespace SteffsToolkit.Editor
                 evt.menu,
                 QuickSceneAccessState.GetColor(target.Guid),
                 color => ColorRequested?.Invoke(target, color));
+
+            evt.menu.AppendSeparator();
+
+            bool isPlayFrom = PlayFromScene.IsPlayFrom(target.Guid);
+            evt.menu.AppendAction(
+                isPlayFrom ? "Stop Playing From This Scene" : "Play From This Scene",
+                _ => PlayFromRequested?.Invoke(target),
+                _ => canOpen ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
 
             evt.menu.AppendSeparator();
 
