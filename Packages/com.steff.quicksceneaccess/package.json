@@ -1,0 +1,15 @@
+{
+  "name": "com.steff.quicksceneaccess",
+  "version": "0.1.0",
+  "displayName": "Quick Scene Access",
+  "description": "Open, search, pin and group scenes from a window, a Scene view toolbar and a keyboard shortcut. Includes favorites, color labels, scene sets and Play From Here.",
+  "unity": "6000.0",
+  "keywords": ["scene", "scenes", "editor", "workflow", "favorites", "productivity"],
+  "author": {
+    "name": "Steff",
+    "url": "https://github.com/StefanyLopez"
+  },
+  "documentationUrl": "https://github.com/StefanyLopez/UnityToolKit/blob/main/README.md",
+  "changelogUrl": "https://github.com/StefanyLopez/UnityToolKit/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/StefanyLopez/UnityToolKit/blob/main/LICENSE"
+}

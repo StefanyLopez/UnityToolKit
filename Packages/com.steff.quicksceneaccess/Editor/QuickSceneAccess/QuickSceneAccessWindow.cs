@@ -8,7 +8,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
-namespace SteffsToolkit.Editor
+namespace Steff.QuickSceneAccess.Editor
 {
     /// <summary>
     /// Quick Scene Access: search, pin, color and open project scenes.
@@ -43,7 +43,7 @@ namespace SteffsToolkit.Editor
 
         private static bool CanOpenNow => !EditorApplication.isPlayingOrWillChangePlaymode;
 
-        [MenuItem("Window/Steff's Toolkit/Quick Scene Access")]
+        [MenuItem("Window/Quick Scene Search")]
         public static void ShowWindow()
         {
             GetWindow<QuickSceneAccessWindow>();

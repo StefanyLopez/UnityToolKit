@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace SteffsToolkit.Editor
+namespace Steff.QuickSceneAccess.Editor
 {
     /// <summary>
     /// Everything you can do with scene sets (create, load, update, rename, delete).

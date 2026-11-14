@@ -4,7 +4,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace SteffsToolkit.Editor
+namespace Steff.QuickSceneAccess.Editor
 {
     internal enum OpenResult
     {

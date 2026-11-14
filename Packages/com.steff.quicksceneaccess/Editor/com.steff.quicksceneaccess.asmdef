@@ -1,6 +1,6 @@
 {
-  "name": "SteffsToolkit.Editor",
-  "rootNamespace": "SteffsToolkit.Editor",
+  "name": "Steff.QuickSceneAccess.Editor",
+  "rootNamespace": "Steff.QuickSceneAccess.Editor",
   "references": [],
   "includePlatforms": [
     "Editor"

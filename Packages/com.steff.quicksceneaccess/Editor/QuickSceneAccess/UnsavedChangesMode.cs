@@ -1,6 +1,6 @@
 using UnityEditor;
 
-namespace SteffsToolkit.Editor
+namespace Steff.QuickSceneAccess.Editor
 {
     /// <summary>What Quick Scene Access does with unsaved changes when switching scenes.</summary>
     internal enum UnsavedChangesMode
