@@ -23,7 +23,7 @@ Open it from **Window > Quick Scene Access**. Click a scene to open it, **Shift+
 
 ### Scene View overlay
 
-![Scene View overlay](Documentation/Images/Overlayr.gif)
+![Scene View overlay](Documentation/Images/Overlay.gif)
 
 Keep scene navigation available while you work in the Scene view. The **Quick Scenes** overlay shows the current scene, your favorites, the save mode, and your Scene Sets, and adapts to where you dock it:
 
