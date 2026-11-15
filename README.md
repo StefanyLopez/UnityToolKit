@@ -1,150 +1,115 @@
-# Steff's Unity Toolkit
+# Quick Scene Access
 
-A modular collection of reusable Unity Editor tools, runtime systems, and project templates.
+**Find, organize, and switch between Unity scenes without digging through the Project window.**
 
-## Packages
+Quick Scene Access is an Editor-only tool for navigating scenes, keeping your most-used scenes one click away, and reloading multi-scene setups. Search by name, folder, or color, use favorites from the Scene view, and save Scene Sets.
 
-| Package | Description | Status |
-| --- | --- | --- |
-| `com.steff.toolkit.editor` | Editor dashboard and workflow tools | Initial foundation |
+![Quick Scene Access overview](Documentation~/Images/quick-scene-access-overview.png)
+
+> **At a glance:** searchable scene list · favorites · scene colors · grouping · recent scenes · Scene View overlay · keyboard search · Scene Sets · Play From This Scene · configurable unsaved-change handling
+
+## Features
+
+### Scene list and organization
+
+Open it from **Window > Quick Scene Access**. Click a scene to open it, **Shift+Click** to open it additively, or right-click for more options.
+
+![Scene list](Documentation/Images/PopUp.png)
+
+- Search by scene name, folder, or color. Several words narrow the results.
+- Pin favorites and find recently opened scenes at the top of the list.
+- Color-code scenes, group them by folder or color, and collapse or expand groups.
+- See which scene is active or additively loaded, and its Build Settings status.
+
+### Scene View overlay
+
+![Scene View overlay](Documentation/Images/Overlay.gif)
+
+Keep scene navigation available while you work in the Scene view. The **Quick Scenes** overlay shows the current scene, your favorites, the save mode, and your Scene Sets, and adapts to where you dock it:
+
+- **Top or bottom:** a horizontal row.
+- **Left or right:** a compact vertical layout.
+- **Floating:** a small panel.
+
+To enable it, open the Scene view's **Overlays** menu and turn on **Quick Scenes**. If you can't find the menu, hover the Scene view and press the backtick key (`` ` ``).
+
+### Quick Scene Search
+
+![Quick Scene Search](Documentation/Images/ShortCut.png)
+
+Press **Ctrl+Shift+O** (Windows/Linux) or **Cmd+Shift+O** (macOS) to open a compact search popup.
+
+- Type to filter, and use the arrow keys to move through the results.
+- **Enter** opens the selected scene, **Shift+Enter** opens it additively, and **Esc** closes the popup.
+- With an empty search field, favorites and recent scenes come first.
+
+You can change the shortcut in **Edit > Shortcuts** by searching for **Quick Scene Search**.
+
+### Scene Sets
+
+![Scene Sets](Documentation/Images/Set.png)
+
+Save the scenes you currently have loaded as a named set, then restore that setup with one click. Useful for a main level plus UI, lighting, or audio scenes.
+
+Create, load, update, rename, and delete sets from the **Sets** menu (or **Scene Sets** in the overlay), or add and remove single scenes from a scene's context menu. Loading a set uses your unsaved-changes mode.
+
+### Safe scene switching
+![Save Scene](Documentation/Images/save.gif)
+
+Choose what happens to modified scenes when you switch:
+
+| Mode | Behavior |
+|---|---|
+| **Ask** (default) | Shows Unity's usual save prompt. |
+| **Auto-save** | Saves modified scenes, then switches. |
+| **Discard** | Switches without saving. Changes are lost. |
+
+Auto-save and Discard ask for confirmation when you turn them on, and are highlighted while active. Scene switching is disabled in Play Mode.
+
+### Play From This Scene
+![Play From](Documentation/Images/PlayFromScene.gif)
+
+Right-click a scene and choose **Play From This Scene** to start Play Mode from it while you keep editing another scene. An indicator shows while it is active. It affects Play Mode only, never builds, and asks before replacing a start scene set elsewhere.
+
+## Installation
+
+Quick Scene Access is a Unity Package Manager (UPM) package. Open the Package Manager from the **Window** menu, then use one of these options.
+
+### Git URL
+
+1. Click **+** and choose the **git URL** option.
+2. Paste the package URL and click **Add**:
+
+```text
+https://github.com/StefanyLopez/UnityToolKit.git?path=/Packages/com.steff.quicksceneaccess
+```
+
+Installing from a Git URL requires [Git](https://git-scm.com/) on your computer.
+
+### From disk
+
+1. Clone or download the repository.
+2. Click **+** and choose the **from disk** option.
+3. Select the package's `package.json`.
 
 ## Requirements
 
-- Unity 6 (6000.x)
+- **Unity 6** (6000.0 or newer). Developed on Unity 6.3 LTS.
+- **Editor-only:** adds nothing to your game build.
+- **Package name:** `com.steff.quicksceneaccess`
 
-# Quick Scene Access
+## Documentation
 
-Jump between scenes in a click. Search them, star your favorites, color-code them, and open any scene straight from the Scene view, without digging through the Project window.
+See the [full reference](Documentation/DOCUMENTATION.md) for every interaction and how the tool works.
 
-Part of **Steff's Unity Toolkit** (`com.steff.toolkit.editor`). It's Editor-only, so nothing ends up in your build. Developed on Unity 6.3 LTS.
+## Notes and limitations
 
----
+- Only scenes under the project's `Assets/` folder are listed.
+- Build information comes from the global Build Settings scene list, not per-profile overrides.
+- Favorites, colors, Scene Sets, and settings are stored per project and user (in `UserSettings/`), so they are not shared with your team.
+- Scene Sets don't appear in Quick Scene Search yet.
+- Not supported yet: thumbnails and closing individual additive scenes.
 
-## Get started
+## Feedback
 
-- **Window:** `Window > Steff's Toolkit > Quick Scene Access`
-- **Scene view overlay:** look for the **Quick Scenes** bar at the bottom of the Scene view. Not there? Press `` ` `` with the cursor over the Scene view, open the Overlays menu and turn on **Quick Scenes**.
-
-The window and the overlay share the same favorites, colors and settings, so what you do in one shows up in the other.
-
----
-
-## What you can do
-
-**Find a scene fast.** Type part of a name, folder or color. With several words, all of them have to match (`lvl menu` finds `Menu` inside `Levels`). Press **Enter** to open the top result.
-
-**Open it your way.**
-
-| Action | What happens |
-|---|---|
-| Click | Opens the scene |
-| Shift + Click | Opens it additively, keeping the current one |
-| Right-click | Open, open additively, favorite, color, ping in Project, show in Explorer/Finder |
-| Click the active scene | Pings it in the Project window |
-
-**Pin your favorites.** Click the star on any scene. Favorites go to the top of the list and become one-click buttons in the Scene view.
-
-**Color-code your scenes.** Right-click a scene and pick a **Color**. You'll see a dot and a soft tint in the list and a colored edge on its overlay button, and you can even search by color name. In the overlay, the scene you're in is filled with its full color, so you always know where you are. Star a scene and it automatically gets a color nobody else is using much, so favorites stand apart from the start (change it any time).
-
-**Tame a long list.** The **Group** menu organizes scenes by folder or by color. Click a section header to collapse it (the tool remembers), or use Collapse All / Expand All.
-
-**Pick up where you left off.** The last scenes you opened show up under **Recent**.
-
-**See what's what at a glance.**
-
-- **Active**: the scene you're in. **Loaded**: open additively next to it.
-- `#2`: it's in your Build Settings with that build index. `off`: it's there but disabled.
-- The status bar shows the scene count and a **Build Profiles** shortcut.
-
----
-
-## The Scene view overlay
-
-It reorganizes itself to fit wherever you dock it:
-
-- **Top or bottom:** a single row.
-- **Left or right edge:** a compact column.
-- **Floating or in a column:** a small panel with outlined, evenly spaced buttons.
-
-It has a dropdown with your current scene (a `*` means unsaved changes), a star for the active scene (right-click it to set a color), a **save-mode button** and one button per favorite (Shift+Click to open additively, right-click for more).
-
----
-
-## Quick search
-
-Press **Ctrl+Shift+O** (**Cmd+Shift+O** on Mac) for a small search popup. Type, use the arrow keys, and press **Enter** to open a scene (**Shift+Enter** to open it additively, **Esc** to close). Favorites and recents come first. You can change the shortcut in `Edit > Shortcuts`.
-
----
-
-## Play from here
-
-Want Play to start from your Menu while you keep editing a level? Right-click the Menu scene and choose **Play From This Scene** (or use the overlay dropdown for the active scene). A `▶` marks it, and an orange `▶ Menu ✕` button in the status bar and overlay reminds you it's on; click it to turn it off. It only affects Play Mode, never builds, and it asks before replacing a start scene you set yourself.
-
----
-
-## Unsaved changes: you choose
-
-The **Save** menu in the window toolbar, or the save-mode button in the overlay, controls what happens when you switch scenes with unsaved changes:
-
-- **Ask** (default): Unity's usual **Save / Don't Save / Cancel** prompt.
-- **Auto-save**: saves for you, then switches.
-- **Discard**: switches and throws the changes away. Handy for quick experiments.
-
-Auto-save and Discard ask you to confirm first, and the control turns orange while they're on so you don't forget.
-
----
-
-## Safe by design
-
-- Scene switching is turned off in Play Mode.
-- The tool only reads your project. It never edits project settings or Build Settings, and it only saves scenes if you turn on Auto-save.
-- Scenes are tracked by GUID, so a clicked scene is always the right file, even after renames or moves.
-
----
-
-## Where your stuff is saved
-
-Favorites, recents, colors, grouping and your Save mode live in:
-
-```
-<project>/UserSettings/SteffsToolkit/QuickSceneAccess.json
-```
-
-It's per project and per user, and Unity's default `.gitignore` leaves it out, so everyone on the team keeps their own setup. Want a fresh start? Close the window and delete the file. If it ever gets corrupted, a `.corrupt` backup is kept next to it.
-
----
-
-## It keeps itself up to date
-
-Add, rename, move or delete a scene and the list updates on its own. If it ever looks stale, the Refresh button rescans the project.
-
----
-
-## Under the hood
-
-Everything is in `Editor/QuickSceneAccess/`, namespace `SteffsToolkit.Editor`, with UI, data and scene-opening kept apart:
-
-- `QuickSceneAccessWindow.cs`, `QuickSceneOverlay.cs`, `SceneRowView.cs`, `QuickSceneAccess.uss`: the UI (UI Toolkit).
-- `SceneListBuilder.cs`: pure logic that turns scenes + favorites + colors + search into the list.
-- `SceneCatalog.cs`: finds scenes once, caches them, and refreshes when assets change.
-- `SceneStatus.cs`: active, loaded and build info.
-- `SceneOpener.cs` and `UnsavedChangesMode.cs`: the safe opening logic and the save modes.
-- `SceneColor.cs`: the color palette.
-- `QuickSceneAccessState.cs`: favorites, colors and settings, saved as JSON.
-
-Handy values to tweak (all constants in the source): folders scanned (`Assets`), recents stored/shown (8/5), overlay buttons per layout, row height (36 px). Window colors live in the `.uss` file and adapt to the dark and light themes.
-
----
-
-## Good to know
-
-- Only scenes under `Assets/` are listed.
-- Build info comes from the global Build Settings scene list, not per-profile overrides.
-- Not here yet: arrow-key navigation, thumbnails, closing additive scenes, sharing colors with the team.
-
-## If something looks off
-
-- **No overlay?** Enable it from the Overlays menu (`` ` `` over the Scene view).
-- **Unstyled window?** Keep `QuickSceneAccess.uss` in the same folder as `QuickSceneAccessWindow.cs`.
-- **Scene missing?** It has to live under `Assets/`, and its section might be collapsed. Hit Refresh.
-- **Can't switch scenes?** Exit Play Mode.
+Found an issue or have an idea? Open an issue in the repository and include your Unity version, the steps to reproduce it, and any error messages.
